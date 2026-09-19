@@ -1,0 +1,296 @@
+/* Freedom Wall styles.
+   Idea: a sheet of school notebook paper (blue rules, red margin line)
+   taped to a concrete wall. Everything else stays quiet. */
+
+:root {
+  --wall: #d3d5d0;
+  --wall-text: #1d1f1e;
+  --wall-muted: #4b4f4c;
+  --paper: #f8f9fc;
+  --rule: #b8c5e6;
+  --margin: #e0837d;
+  --ink: #1b2a6b;
+  --danger: #b3261e;
+  --highlight: #ffe94a;
+  --line: #a9aca6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --wall: #262827;
+    --wall-text: #ecedea;
+    --wall-muted: #a9aca6;
+    --danger: #ff8a80;
+    --line: #444846;
+  }
+}
+
+.wall-page {
+  min-height: 100vh;
+  margin: 0;
+  padding: 2rem 1rem 4rem;
+  background: var(--wall);
+  color: var(--wall-text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+.wall-col {
+  max-width: 36rem;
+  margin: 0 auto;
+}
+
+.wall-col.wide {
+  max-width: 52rem;
+}
+
+.wall-title {
+  margin: 0 0 0.25rem;
+  font-size: clamp(2.4rem, 9vw, 3.6rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.wall-sub {
+  margin: 0 0 1.5rem;
+  color: var(--wall-muted);
+  max-width: 30rem;
+}
+
+/* ---------- The notebook sheet ---------- */
+
+.sheet {
+  padding-top: 0.5rem;
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 2px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.sheet textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 14rem;
+  resize: vertical;
+  border: 0;
+  border-radius: 2px;
+  padding: 0 1rem 0 3.4rem;
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 2rem;
+  color: var(--ink);
+  background-color: transparent;
+  background-attachment: local;
+  background-image:
+    linear-gradient(to right, transparent 2.6rem, var(--margin) 2.6rem, var(--margin) calc(2.6rem + 2px), transparent calc(2.6rem + 2px)),
+    repeating-linear-gradient(to bottom, transparent 0, transparent calc(2rem - 1px), var(--rule) calc(2rem - 1px), var(--rule) 2rem);
+}
+
+.sheet textarea::placeholder {
+  color: #7d88b3;
+}
+
+.sheet-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.35rem 1rem 0.6rem;
+  font-size: 0.85rem;
+  color: #56608a;
+}
+
+.sheet-foot.over {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* ---------- Form fields ---------- */
+
+.fields {
+  display: grid;
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+
+@media (min-width: 30rem) {
+  .fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.field label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem; /* 16px stops iPhones zooming in */
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn {
+  padding: 0.7rem 1.4rem;
+  border: 2px solid var(--wall-text);
+  border-radius: 2px;
+  background: var(--wall-text);
+  color: var(--wall);
+  font-weight: 700;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn.plain {
+  background: transparent;
+  color: var(--wall-text);
+}
+
+.btn.small {
+  padding: 0.3rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+.btn.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: transparent;
+}
+
+:where(textarea, input, select, button, a):focus-visible {
+  outline: 3px solid var(--highlight);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--wall-text);
+}
+
+::selection {
+  background: var(--highlight);
+  color: #000;
+}
+
+.notice {
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--wall-muted);
+  font-size: 0.9rem;
+}
+
+.notice li + li {
+  margin-top: 0.4rem;
+}
+
+.msg {
+  margin: 1rem 0 0;
+  font-weight: 600;
+}
+
+.msg.error {
+  color: var(--danger);
+}
+
+/* ---------- Admin ---------- */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.25rem 0;
+}
+
+.tab[aria-pressed='true'] {
+  background: var(--wall-text);
+  color: var(--wall);
+}
+
+.tab.alert {
+  border-color: var(--danger);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.item {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.item-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.9rem;
+  color: var(--wall-muted);
+}
+
+.item-head strong {
+  color: var(--wall-text);
+}
+
+.item-text {
+  margin: 0.4rem 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.item-meta {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+  color: var(--wall-muted);
+}
+
+.item-error {
+  margin: 0.4rem 0;
+  font-size: 0.9rem;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.item-actions {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.empty {
+  padding: 1.5rem 0;
+  color: var(--wall-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
