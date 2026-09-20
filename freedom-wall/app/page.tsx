@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
+import Link from 'next/link';
 import Script from 'next/script';
 import './wall.css';
 import {
@@ -168,7 +169,7 @@ export default function Home() {
                 type="text"
                 inputMode="text"
                 value={replyTo}
-                placeholder={formatPostNumber(67)}
+                placeholder={formatPostNumber(42)}
                 onChange={(e) => setReplyTo(e.target.value)}
                 autoComplete="off"
               />
@@ -220,6 +221,9 @@ export default function Home() {
           {FORM_NOTICE.map((line) => (
             <li key={line}>{line}</li>
           ))}
+          <li>
+            <Link href="/privacy">Privacy policy</Link>
+          </li>
         </ul>
       </div>
 

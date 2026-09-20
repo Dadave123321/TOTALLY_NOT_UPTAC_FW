@@ -23,3 +23,8 @@ export const FORM_NOTICE = [
   'Messages with a picture wait for an admin to look at the picture before they join the line, so they can take longer and may not go up.',
   'We do not save your name, email, or IP address with your message. Location and camera details are removed from pictures. Add a name below only if you want it shown.',
 ];
+
+// ---- Used by the /privacy page. EDIT THESE before you submit the page to Meta. ----
+export const ORG_NAME = 'Your School Name';
+export const CONTACT_EMAIL = 'your-email@example.com'; // where people can ask for a post to be removed
+export const POLICY_UPDATED = '20 September 2026';
