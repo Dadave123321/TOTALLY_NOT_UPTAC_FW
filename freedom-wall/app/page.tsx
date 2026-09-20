@@ -168,7 +168,7 @@ export default function Home() {
                 type="text"
                 inputMode="text"
                 value={replyTo}
-                placeholder={formatPostNumber(42)}
+                placeholder={formatPostNumber(67)}
                 onChange={(e) => setReplyTo(e.target.value)}
                 autoComplete="off"
               />
