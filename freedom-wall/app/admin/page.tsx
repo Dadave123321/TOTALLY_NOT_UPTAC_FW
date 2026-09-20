@@ -5,25 +5,31 @@ import type { Session } from '@supabase/supabase-js';
 import '../wall.css';
 import { supabase } from '../../lib/supabaseBrowser';
 import { formatPostNumber } from '../../lib/format';
-import { SITE_NAME } from '../../lib/config';
+import { IMAGE_BUCKET, SITE_NAME } from '../../lib/config';
 import type { Status, Submission } from '../../lib/types';
 
 const TABS: { key: Status; label: string }[] = [
+  { key: 'review', label: 'Pictures to review' },
   { key: 'queued', label: 'Queued' },
   { key: 'posting', label: 'Posting' },
   { key: 'posted', label: 'Posted' },
   { key: 'failed', label: 'Failed' },
   { key: 'removed', label: 'Removed' },
+  { key: 'rejected', label: 'Rejected' },
 ];
+
+// Picture links are private and expire after an hour, so we refresh them a bit early.
+const LINK_LIFETIME_MS = 50 * 60 * 1000;
 
 export default function AdminPage() {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [rows, setRows] = useState<Submission[]>([]);
-  const [tab, setTab] = useState<Status>('queued');
+  const [tab, setTab] = useState<Status>('review');
   const [busyId, setBusyId] = useState('');
   const [note, setNote] = useState('');
+  const [pictureLinks, setPictureLinks] = useState<Record<string, { url: string; at: number }>>({});
 
   // ----- login state -----
   useEffect(() => {
@@ -64,6 +70,36 @@ export default function AdminPage() {
     return () => clearInterval(timer);
   }, [isAdmin, load]);
 
+  const shown = rows.filter((r) => r.status === tab);
+  // Oldest first for lines that are waiting (that is the order they get handled).
+  if (tab === 'queued' || tab === 'review') shown.reverse();
+
+  // Get private, short-lived links for the pictures on screen.
+  useEffect(() => {
+    if (!isAdmin) return;
+    const now = Date.now();
+    const needed = shown
+      .map((r) => r.image_path)
+      .filter((p): p is string => Boolean(p))
+      .filter((p) => !pictureLinks[p] || now - pictureLinks[p].at > LINK_LIFETIME_MS);
+    if (needed.length === 0) return;
+
+    supabase.storage
+      .from(IMAGE_BUCKET)
+      .createSignedUrls(needed, 3600)
+      .then(({ data }) => {
+        if (!data) return;
+        setPictureLinks((prev) => {
+          const next = { ...prev };
+          for (const item of data) {
+            if (item.path && item.signedUrl) next[item.path] = { url: item.signedUrl, at: Date.now() };
+          }
+          return next;
+        });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, tab, rows]);
+
   // ----- actions -----
   function signIn() {
     supabase.auth.signInWithOAuth({
@@ -72,13 +108,30 @@ export default function AdminPage() {
     });
   }
 
-  async function retry(id: string) {
+  async function runAction(id: string, action: () => PromiseLike<{ error: { message: string } | null }>, failText: string) {
     setBusyId(id);
     setNote('');
-    const { error } = await supabase.rpc('retry_submission', { p_id: id });
-    if (error) setNote(`Retry failed: ${error.message}`);
+    const { error } = await action();
+    if (error) setNote(`${failText}: ${error.message}`);
     else await load();
     setBusyId('');
+  }
+
+  function retry(id: string) {
+    return runAction(id, () => supabase.rpc('retry_submission', { p_id: id }), 'Retry failed');
+  }
+
+  function approvePicture(id: string) {
+    return runAction(id, () => supabase.rpc('approve_image_post', { p_id: id }), 'Could not approve');
+  }
+
+  async function rejectPicture(row: Submission) {
+    if (!window.confirm('Reject this post? Nothing will be posted and the picture is deleted.')) return;
+    await runAction(row.id, () => supabase.rpc('reject_image_post', { p_id: row.id }), 'Could not reject');
+    if (row.image_path) {
+      // Delete the picture file too. (If this fails the post is still rejected.)
+      await supabase.storage.from(IMAGE_BUCKET).remove([row.image_path]);
+    }
   }
 
   async function removePost(id: string) {
@@ -140,9 +193,6 @@ export default function AdminPage() {
   }
 
   const counts = (s: Status) => rows.filter((r) => r.status === s).length;
-  const shown = rows.filter((r) => r.status === tab);
-  // Oldest first for the queue (that is the order they will post); newest first elsewhere.
-  if (tab === 'queued') shown.reverse();
 
   return (
     <main className="wall-page">
@@ -156,16 +206,19 @@ export default function AdminPage() {
         </div>
 
         <div className="tabs" role="group" aria-label="Filter by status">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              className={`btn plain small tab${t.key === 'failed' && counts('failed') > 0 ? ' alert' : ''}`}
-              aria-pressed={tab === t.key}
-              onClick={() => setTab(t.key)}
-            >
-              {t.label} ({counts(t.key)})
-            </button>
-          ))}
+          {TABS.map((t) => {
+            const needsAttention = (t.key === 'failed' || t.key === 'review') && counts(t.key) > 0;
+            return (
+              <button
+                key={t.key}
+                className={`btn plain small tab${needsAttention ? ' alert' : ''}`}
+                aria-pressed={tab === t.key}
+                onClick={() => setTab(t.key)}
+              >
+                {t.label} ({counts(t.key)})
+              </button>
+            );
+          })}
         </div>
 
         {note && <p className="msg error" role="alert">{note}</p>}
@@ -181,12 +234,33 @@ export default function AdminPage() {
                   <span>{r.category}</span>
                   <time dateTime={r.created_at}>{new Date(r.created_at).toLocaleString()}</time>
                 </div>
-                <p className="item-text">{r.message}</p>
+
+                {r.reply_to != null && <p className="item-meta">Replying to {formatPostNumber(r.reply_to)}</p>}
+                {r.message && <p className="item-text">{r.message}</p>}
+
+                {r.image_path && (
+                  pictureLinks[r.image_path] ? (
+                    <img className="item-img" src={pictureLinks[r.image_path].url} alt="Attached picture" />
+                  ) : (
+                    <p className="item-meta">Loading picture...</p>
+                  )
+                )}
+
                 {r.sign_as && <p className="item-meta">Signed: {r.sign_as}</p>}
                 {r.flags.length > 0 && <p className="item-meta">Flags: {r.flags.join(', ')}</p>}
                 {r.post_error && <p className="item-error">{r.post_error}</p>}
 
                 <div className="item-actions">
+                  {r.status === 'review' && (
+                    <>
+                      <button className="btn small" disabled={busyId === r.id} onClick={() => approvePicture(r.id)}>
+                        Approve
+                      </button>
+                      <button className="btn small danger" disabled={busyId === r.id} onClick={() => rejectPicture(r)}>
+                        Reject
+                      </button>
+                    </>
+                  )}
                   {r.status === 'failed' && !r.fb_post_id && (
                     <button className="btn small" disabled={busyId === r.id} onClick={() => retry(r.id)}>
                       Retry

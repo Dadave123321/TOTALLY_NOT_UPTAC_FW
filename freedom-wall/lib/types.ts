@@ -1,4 +1,11 @@
-export type Status = 'queued' | 'posting' | 'posted' | 'failed' | 'removed';
+export type Status =
+  | 'review'
+  | 'queued'
+  | 'posting'
+  | 'posted'
+  | 'failed'
+  | 'removed'
+  | 'rejected';
 
 // One row of the "submissions" table (only the columns the app uses).
 export type Submission = {
@@ -10,6 +17,8 @@ export type Submission = {
   flags: string[];
   status: Status;
   post_number: number | null;
+  reply_to: number | null;
+  image_path: string | null;
   fb_post_id: string | null;
   post_error: string | null;
   posted_at: string | null;

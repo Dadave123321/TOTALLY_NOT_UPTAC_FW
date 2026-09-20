@@ -294,3 +294,34 @@ button {
     animation: none !important;
   }
 }
+
+/* ---------- Pictures ---------- */
+
+.picture-preview {
+  margin: 0 0 1rem;
+}
+
+.picture-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 18rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--line);
+}
+
+.field input[type='file'] {
+  padding: 0.45rem;
+  font-size: 0.9rem;
+}
+
+.item-img {
+  display: block;
+  max-width: 100%;
+  max-height: 26rem;
+  margin: 0.5rem 0;
+  border: 1px solid var(--line);
+}
+
+.item-actions .btn.plain {
+  border-color: var(--wall-text);
+}

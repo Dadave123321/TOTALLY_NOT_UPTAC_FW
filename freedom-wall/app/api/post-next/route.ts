@@ -1,7 +1,14 @@
 import { timingSafeEqual } from 'node:crypto';
 import { serviceClient } from '../../../lib/supabaseServer';
 import { buildPostText } from '../../../lib/format';
-import { facebookConfigured, isDryRun, publishToPage, type FbResult } from '../../../lib/facebook';
+import {
+  facebookConfigured,
+  isDryRun,
+  publishPhotoToPage,
+  publishToPage,
+  type FbResult,
+} from '../../../lib/facebook';
+import { IMAGE_BUCKET } from '../../../lib/config';
 import type { Submission } from '../../../lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -41,9 +48,18 @@ async function run(request: Request) {
     return Response.json({ posted: false, reason: 'Nothing to post right now (queue empty, or waiting out the gap).' });
   }
 
-  const result: FbResult = isDryRun()
-    ? { ok: true, id: `dry-run-${row.id}` }
-    : await publishToPage(buildPostText(row));
+  let result: FbResult;
+  if (isDryRun()) {
+    result = { ok: true, id: `dry-run-${row.id}` };
+  } else if (row.image_path) {
+    // Picture post: fetch the picture from private storage, then upload it.
+    const { data: file, error: downloadError } = await db.storage.from(IMAGE_BUCKET).download(row.image_path);
+    result = file
+      ? await publishPhotoToPage(buildPostText(row), await file.arrayBuffer())
+      : { ok: false, error: `Could not load the picture from storage: ${downloadError?.message ?? 'not found'}` };
+  } else {
+    result = await publishToPage(buildPostText(row));
+  }
 
   if (!result.ok) {
     await db.rpc('fail_post', { p_id: row.id, p_error: result.error });

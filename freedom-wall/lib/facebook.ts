@@ -17,13 +17,15 @@ export type FbResult = { ok: true; id: string } | { ok: false; error: string };
 async function callGraph(
   url: string,
   method: 'POST' | 'DELETE',
-  body?: URLSearchParams
+  body?: URLSearchParams | FormData
 ): Promise<FbResult> {
   try {
     const res = await fetch(url, {
       method,
       body,
-      headers: body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : undefined,
+      // A plain form needs this header. For file uploads (FormData) we must
+      // NOT set it: fetch adds the correct one, including the boundary.
+      headers: body instanceof URLSearchParams ? { 'Content-Type': 'application/x-www-form-urlencoded' } : undefined,
       cache: 'no-store',
     });
     const json: Record<string, any> = await res.json().catch(() => ({}));
@@ -39,7 +41,12 @@ async function callGraph(
       }
       return { ok: false, error: `Facebook error ${e.code ?? res.status}: ${e.message ?? 'unknown error'}` };
     }
-    return { ok: true, id: typeof json.id === 'string' ? json.id : '' };
+
+    // Picture uploads may return both a photo id and the id of the Page post
+    // that holds it. Prefer the post id, since that is what we delete later.
+    const id =
+      typeof json.post_id === 'string' ? json.post_id : typeof json.id === 'string' ? json.id : '';
+    return { ok: true, id };
   } catch (err) {
     return {
       ok: false,
@@ -55,6 +62,22 @@ export async function publishToPage(message: string): Promise<FbResult> {
     access_token: process.env.FACEBOOK_PAGE_ACCESS_TOKEN!,
   });
   const result = await callGraph(`${BASE}/${process.env.FACEBOOK_PAGE_ID}/feed`, 'POST', body);
+  if (result.ok && !result.id) {
+    return { ok: false, error: 'Facebook did not return a post ID.' };
+  }
+  return result;
+}
+
+// Publishes a picture (with the text as its caption) on the Page.
+// The picture is uploaded as a file; Facebook's docs call the field "source".
+export async function publishPhotoToPage(caption: string, image: ArrayBuffer): Promise<FbResult> {
+  const form = new FormData();
+  form.append('source', new Blob([image], { type: 'image/jpeg' }), 'photo.jpg');
+  form.append('message', caption);
+  form.append('published', 'true');
+  form.append('access_token', process.env.FACEBOOK_PAGE_ACCESS_TOKEN!);
+
+  const result = await callGraph(`${BASE}/${process.env.FACEBOOK_PAGE_ID}/photos`, 'POST', form);
   if (result.ok && !result.id) {
     return { ok: false, error: 'Facebook did not return a post ID.' };
   }
